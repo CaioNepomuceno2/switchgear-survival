@@ -1,0 +1,5 @@
+classe,frota_2025,sem_data_2025,baixas_principal,acrescimos_principal,reversoes_principal,baixas_com_2021,acrescimos_com_2021,reversoes_com_2021,safras_nao_monotonas,confiavel
+religador,3556,0.0034,118,0,0.0,174,60,0.345,0.0,True
+disjuntor,678,0.1431,25,0,0.0,104,24,0.231,0.0,True
+chave,264931,0.021,24414,9072,0.372,55203,39136,0.709,0.163,False
+regulador,1838,0.0,990,206,0.208,1106,291,0.263,0.588,False

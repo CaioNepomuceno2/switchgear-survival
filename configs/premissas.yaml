@@ -1,0 +1,63 @@
+# Recorte: Energisa Mato Grosso (EMT), cadastro BDGD de 31/12 de cada ano.
+distribuidora: EMT
+
+paths:
+  cache: /home/user/bdgd-cache        # cache por camada (scripts/00_baixar_bdgd.py recria do zero)
+  processed: data/processed
+
+bdgd:
+  # id do item no ArcGIS Hub da ANEEL (mesmos IDs do projeto distribution-asset-risk)
+  snapshots:
+    2018: b6900e72a13946b6a2dc015aaf6d6ccd
+    2019: f15e84cabd564d31869c3af5d7855376
+    2020: bc9ef518725a416a99e08c99e2d979d1
+    2021: 13d6ff510a4c4a7fac64f0e119beb245
+    2022: 94a1b3fa56e3442fb8a2b3a8a3dc4df8
+    2023: f6095aa7e5c64119ab46e3efe46b77d5
+    2024: 8fed7443387d4d04a361e7f4d1edea64
+    2025: 02a120db1b5149709f8d371c21635adc
+  # 2018 e 2019 (modelo M10) trazem DAT_IMO = 01/01/1920 em 100% dos equipamentos: ficam de fora.
+  anos_com_data: [2020, 2021, 2022, 2023, 2024, 2025]
+
+# Classes de ativo pelo Tipo de Unidade de Cadastro (TUC) do Manual de Controle Patrimonial.
+# 160 e 210 conferidos no Banco de Preços de Referência da ANEEL (NumUC); 345 e 340 pela
+# ligação na própria BDGD (equipamentos das unidades TIP_UNID=32 têm TUC 345; a camada EQRE tem TUC 340).
+classes:
+  religador:   {camada: EQSE, tuc: "345", nome: "Religador"}
+  disjuntor:   {camada: EQSE, tuc: "210", nome: "Disjuntor de média tensão"}
+  chave:       {camada: EQSE, tuc: "160", nome: "Chave (seccionadora e fusível)"}
+  regulador:   {camada: EQRE, tuc: "340", nome: "Regulador de tensão"}
+
+analise:
+  # transições usadas no ajuste principal (ano do cadastro inicial -> seguinte)
+  transicoes_principal: [2021, 2022, 2023, 2024]
+  # 2020->2021 tem acréscimos em safras antigas do mesmo tamanho das quedas (recadastramento): sensibilidade
+  transicoes_sensibilidade: [2020, 2021, 2022, 2023, 2024]
+  # validação fora da amostra (transição t = cadastro t -> t+1)
+  validacoes:
+    - {nome: "ajuste 2022-2023, teste 2024-2025", ajuste: [2021, 2022], teste: [2023, 2024]}
+    - {nome: "ajuste 2022-2024, teste 2025", ajuste: [2021, 2022, 2023], teste: [2024]}
+  # baseline "idade-limite": troca tudo que atinge esta idade (parâmetro, não é a vida regulatória)
+  idade_limite_anos: 25
+  # limiar de qualidade: acréscimos em safras antigas / quedas acima disto => classe não confiável
+  limite_reversoes: 0.25
+  # e/ou fração de safras cuja contagem volta a subir depois de cair acima disto => não confiável
+  limite_nao_monotonas: 0.10
+  bootstrap: 500
+  seed: 7
+
+projecao:
+  inicio: 2026
+  fim: 2035
+  # custo unitário de substituição (R$, material + instalação) - ILUSTRATIVO; null = sem custo
+  custo_unitario_rs:
+    religador: 160000     # mesma premissa ilustrativa do projeto automation-impact
+    disjuntor: null
+    chave: null
+    regulador: null
+  # vida útil regulatória (anos) para comparação; null = não informada (preencher com a fonte oficial)
+  vida_util_regulatoria_anos:
+    religador: null
+    disjuntor: null
+    chave: null
+    regulador: null
