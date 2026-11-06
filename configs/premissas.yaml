@@ -2,7 +2,9 @@
 distribuidora: EMT
 
 paths:
-  cache: /home/user/bdgd-cache        # cache por camada (scripts/00_baixar_bdgd.py recria do zero)
+  # cache por camada (scripts/00_baixar_bdgd.py recria do zero). Relativo à raiz do projeto;
+  # a variável de ambiente SWSURV_CACHE, se definida, tem prioridade (ver README, "Reproduzir").
+  cache: data/cache
   processed: data/processed
 
 bdgd:
@@ -55,7 +57,16 @@ projecao:
     disjuntor: null
     chave: null
     regulador: null
-  # vida útil regulatória (anos) para comparação; null = não informada (preencher com a fonte oficial)
+  # vida útil regulatória (anos) para comparação; null = não informada. Nenhum código do projeto lê este
+  # parâmetro hoje (ele só documenta a comparação pretendida).
+  # Fonte a usar: Manual de Controle Patrimonial do Setor Elétrico (MCPSE), anexo da REN ANEEL 674/2015
+  # (11/08/2015), Tabela XVI (vida útil e taxa anual de depreciação por TUC e subcódigo).
+  # Situação em 06/11/2026: o PDF oficial não pôde ser lido (www2.aneel.gov.br e antigo.aneel.gov.br
+  # responderam HTTP 403 ao acesso automatizado). Cópias e resumos de terceiros trazem linhas truncadas ou
+  # de versões anteriores da tabela e NÃO foram usados. Por isso os quatro valores seguem em branco, sem
+  # estimativa. Antes de preencher: abrir a Tabela XVI, conferir se o TUC se divide em subcódigos (tipo de
+  # equipamento, classe de tensão) e só preencher quando um subcódigo mapear sem dúvida para a classe daqui.
+  # A ANEEL tem a revisão do MCPSE na agenda 2025-2026 (consulta pública 39/2025): conferir a versão vigente.
   vida_util_regulatoria_anos:
     religador: null
     disjuntor: null

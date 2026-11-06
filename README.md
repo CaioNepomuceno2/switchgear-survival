@@ -70,8 +70,9 @@ curva de Weibull, o método atuarial usado em estudos de depreciação de conces
   de substituições pedido no plano de obras melhor que um percentual fixo.
 * **Base de remuneração e depreciação.** A vida útil regulatória dos equipamentos é definida pela ANEEL no manual
   de controle patrimonial. Comparar a vida observada com a regulatória mostra se a frota é trocada antes ou depois
-  do fim da depreciação. O parâmetro está em `configs/premissas.yaml` e ficou em branco aqui, porque não consultei
-  a tabela oficial neste ambiente.
+  do fim da depreciação. O parâmetro está em `configs/premissas.yaml` e segue em branco: tentei ler a Tabela XVI do
+  manual (anexo da REN 674/2015), mas o site da ANEEL recusou o acesso automatizado, e não usei cópias de terceiros.
+  O código ainda não lê esse parâmetro.
 * **Risco de falha.** A taxa de 4,3% ao ano entre 15 e 19 anos indica onde está o risco hoje: as safras de 2006
   a 2010, que entram nessa faixa agora.
 * **Qualidade do cadastro.** O diagnóstico aponta exatamente quais campos e classes da BDGD não sustentam análise
@@ -236,7 +237,21 @@ pytest
 ```
 
 As premissas (classes, janelas, limiares de qualidade, custos e vida regulatória) ficam em
-[`configs/premissas.yaml`](configs/premissas.yaml). O caminho do cache é configurável.
+[`configs/premissas.yaml`](configs/premissas.yaml).
+
+O cache da BDGD (`scripts/00_baixar_bdgd.py` grava um Parquet por camada e ano) fica por padrão em `data/cache`,
+dentro do projeto, e a pasta está no `.gitignore`. Para usar outro disco, defina `SWSURV_CACHE` antes de rodar
+os scripts; a variável vale mais que o YAML, e caminho relativo conta a partir da raiz do projeto:
+
+```bash
+export SWSURV_CACHE=/dados/bdgd-cache          # bash
+```
+
+```powershell
+$env:SWSURV_CACHE = "D:\dados\bdgd-cache"      # PowerShell
+```
+
+O `pytest` não baixa nada: os testes montam cadastros sintéticos minúsculos numa pasta temporária.
 
 ## Estrutura
 
@@ -267,7 +282,9 @@ reports/        tabelas e figuras
   de idade dos datados.
 * **Interrupções não foram ligadas à idade.** O dado de 2026 traz o tipo de equipamento que atuou, mas não o
   equipamento, e a idade individual não é confiável.
-* **Custos e vida regulatória.** O custo do religador é ilustrativo e a vida regulatória não foi preenchida.
+* **Custos e vida regulatória.** O custo do religador é ilustrativo. A vida regulatória segue em branco: o PDF da
+  Tabela XVI do manual de controle patrimonial não pôde ser lido (HTTP 403 do site da ANEEL) e nenhum valor foi
+  estimado.
 
 ---
 Autor: **Caio Nepomuceno**. Dados públicos da ANEEL (BDGD). Projeto independente, sem vínculo com a Energisa ou com a

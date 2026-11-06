@@ -136,7 +136,7 @@ demais classes ficam sem custo.
 | Limiares de consistência | 25% de acréscimos; 10% de safras não monótonas | Escolha do projeto |
 | Idade-limite do baseline | 25 anos | Parâmetro de comparação |
 | Custo de substituição do religador | R$ 160 mil | Ilustrativo |
-| Vida útil regulatória | não preenchida | Preencher com a tabela oficial da ANEEL |
+| Vida útil regulatória | não preenchida | Tabela XVI do MCPSE (anexo da REN 674/2015); PDF oficial não pôde ser lido, ver `configs/premissas.yaml` |
 
 ## 11. Como interpretar
 
