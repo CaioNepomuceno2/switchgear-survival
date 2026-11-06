@@ -251,7 +251,7 @@ export SWSURV_CACHE=/dados/bdgd-cache          # bash
 $env:SWSURV_CACHE = "D:\dados\bdgd-cache"      # PowerShell
 ```
 
-O `pytest` não baixa nada: os testes montam cadastros sintéticos minúsculos numa pasta temporária.
+O `pytest` não baixa nada: os testes usam só dados sintéticos minúsculos, gerados no próprio teste.
 
 ## Estrutura
 
