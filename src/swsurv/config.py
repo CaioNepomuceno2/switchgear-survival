@@ -1,11 +1,13 @@
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass
 from pathlib import Path
 
 import yaml
 
 ROOT = Path(__file__).resolve().parents[2]
+CACHE_ENV = "SWSURV_CACHE"
 
 
 @dataclass(frozen=True)
@@ -18,7 +20,15 @@ class Config:
 
     @property
     def cache(self) -> Path:
-        return Path(self.raw["paths"]["cache"])
+        """Pasta do cache por camada (<cache>/<ano>/<CAMADA>.parquet).
+
+        A variável de ambiente SWSURV_CACHE, se definida e não vazia, vence o `paths.cache` do YAML.
+        Caminho relativo (no YAML ou na variável) vale a partir da raiz do projeto; absoluto é respeitado.
+        A pasta não é criada aqui: quem grava (scripts/00_baixar_bdgd.py) cria.
+        """
+        env = os.environ.get(CACHE_ENV, "").strip()
+        p = Path(env or self.raw["paths"]["cache"]).expanduser()
+        return p if p.is_absolute() else ROOT / p
 
     @property
     def processed(self) -> Path:
