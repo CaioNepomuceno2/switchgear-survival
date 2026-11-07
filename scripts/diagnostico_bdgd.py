@@ -5,9 +5,11 @@ Mede o que decide a configuração (anos com data, classes por TUC, limiares, ja
   2. camadas e colunas por cadastro (mudança de modelo);
   3. TUC por cadastro e TUC contra o TIP_UNID da unidade a que o equipamento pertence;
   4. qualidade de DAT_IMO por classe e cadastro (vazia, data-padrão, antes de 1950, no futuro, válida);
-  5. qualidade das transições (acréscimos em safras antigas contra baixas) por classe;
+  5. qualidade das transições (acréscimos em safras antigas contra baixas) por classe, as safras principais de
+     cada cadastro e o "vai e volta" das datas (mesmo equipamento, mesma safra antes e depois, outra no meio);
   6. janelas candidatas de ajuste, com os indicadores de consistência;
-  7. pontos de religador (UNSEMT): extensão geográfica e latitude de referência.
+  7. pontos de religador (UNSEMT): extensão geográfica e latitude de referência;
+  8. nível de tensão (GRU_TEN) de cada TUC.
 Entrada: o cache por camada (scripts/00_baixar_bdgd.py). Saída: <reports>/diagnostico/*.csv
 
     python scripts/diagnostico_bdgd.py --config configs/premissas_ems.yaml
@@ -78,6 +80,18 @@ for camada, unid, chave_ano in [("EQSE", "UNSEMT", "UN_SE"), ("EQRE", "UNREMT", 
 salva(pd.DataFrame(tuc_ano), "tuc_por_ano.csv")
 salva(pd.DataFrame(tuc_tip), "tuc_x_tip_unid.csv")
 
+# 8. nível de tensão (GRU_TEN, só no modelo V10/V11) de cada TUC
+tensao = []
+for camada in ("EQSE", "EQRE"):
+    for ano in anos:
+        e = ler(ano, camada)
+        if "GRU_TEN" not in e:
+            continue
+        e["TUC"] = e["TUC"].astype("string").str.strip()
+        for (tuc, gru), n in e.groupby(["TUC", e["GRU_TEN"].astype("string").str.strip()]).size().items():
+            tensao.append({"camada": camada, "ano": ano, "tuc": tuc, "gru_ten": gru, "equipamentos": int(n)})
+salva(pd.DataFrame(tensao), "tuc_x_tensao.csv")
+
 # 4. qualidade de DAT_IMO por classe (e pelos TUC fora das classes) e cadastro -----------------------------
 linhas = []
 for ano in anos:
@@ -133,6 +147,24 @@ for classe, spec in cfg.classes.items():
                       "reversoes": round(mov.acrescimos.sum() / mov.baixas.sum(), 3) if mov.baixas.sum() else None})
 salva(pd.DataFrame(trans), "transicoes.csv")
 
+principais, vaivem = [], []
+for classe, spec in cfg.classes.items():
+    m = matrizes[classe]
+    for v in m.max(axis=1).sort_values(ascending=False).index[:10]:
+        for ano in m.columns:
+            principais.append({"classe": classe, "safra": int(v), "ano": int(ano), "equipamentos": int(m.at[v, ano])})
+    eq = pd.concat([C.ler_classe(cfg.cache, ano, spec["camada"], spec["tuc"], cod) for ano in anos], ignore_index=True)
+    s_id = eq.pivot_table(index="COD_ID", columns="ano", values="safra", aggfunc="first")
+    for t in [x for x in sorted(m.columns) if x - 1 in m.columns and x + 1 in m.columns]:
+        tres = s_id[[t - 1, t, t + 1]].dropna()
+        iguais = tres[tres[t - 1] == tres[t + 1]]
+        diferente = int((iguais[t] != iguais[t - 1]).sum())
+        vaivem.append({"classe": classe, "ano_do_meio": t, "ids_nos_3_cadastros": len(tres),
+                       "mesma_safra_antes_e_depois": len(iguais), "outra_safra_no_meio": diferente,
+                       "pct_outra_no_meio": round(100 * diferente / len(iguais), 2) if len(iguais) else None})
+salva(pd.DataFrame(principais), "safras_principais.csv")
+salva(pd.DataFrame(vaivem), "vai_e_volta_das_datas.csv")
+
 # 6. janelas candidatas: indicadores de consistência (sem ajustar curva nenhuma) -----------------------------------
 lim_rev, lim_nm = a.get("limite_reversoes", 0.25), a.get("limite_nao_monotonas", 0.10)
 cand = []
@@ -145,11 +177,13 @@ for inicio in [x for x in anos if x < ultimo]:
         if mov.empty:
             continue
         q = C.qualidade_classe(mov)
+        det = C.safras_nao_monotonas_detalhe(m, anos_j)
         nm = C.safras_nao_monotonas(m, anos_j)
         cand.append({"classe": classe, "transicoes": f"{janela[0]}->{janela[-1] + 1}", "n_transicoes": len(janela),
                      "baixas": q["baixas"], "acrescimos": q["acrescimos_safras_antigas"],
                      "reversoes": round(q["reversoes"], 3) if q["baixas"] else None,
-                     "safras_nao_monotonas": round(nm, 3) if nm == nm else None,
+                     "safras_elegiveis": len(det), "safras_que_voltam_a_subir": int(det.sum()),
+                     "safras_nao_monotonas": round(nm, 3) if pd.notna(nm) else None,
                      "passa_limites_de_mt": bool(q["baixas"] and q["reversoes"] <= lim_rev and nm <= lim_nm)})
 salva(pd.DataFrame(cand), "janelas_candidatas.csv")
 

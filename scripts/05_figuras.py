@@ -1,13 +1,16 @@
 """Figuras do README (<reports>/figures).
 
-Plota as classes que passaram no teste de consistência (confiavel = True em vida_weibull.csv). Os anos dos
-títulos vêm da configuração. Outra distribuidora: --config configs/premissas_ems.yaml (ou SWSURV_CONFIG).
+Plota as classes que passaram no teste de consistência (confiavel = True em vida_weibull.csv). Se nenhuma passou
+(acontece em MS), saem só as figuras do cadastro: frota por safra (03), qualidade (06) e, se a configuração pedir,
+acréscimos contra baixas por transição (07). Os anos dos títulos vêm da configuração.
+Outra distribuidora: --config configs/premissas_ems.yaml (ou SWSURV_CONFIG).
 """
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
 from swsurv import atuarial as A
+from swsurv import cadastro as C
 from swsurv.config import carregar
 
 plt.switch_backend("Agg")
@@ -29,7 +32,7 @@ vida = pd.read_csv(R / "vida_weibull.csv")
 pr = vida[vida.cenario == "principal"].set_index("classe")
 conf = [c for c in cfg.classes if bool(pr.at[c, "confiavel"])]  # classes com estimativa de vida
 if not conf:
-    raise SystemExit("nenhuma classe passou no teste de consistência: não há figuras de vida para desenhar")
+    print("nenhuma classe passou no teste de consistência: figuras 01, 02, 04 e 05 (vida, projeção, validação) não geradas")
 
 
 def rotula(fig):
@@ -38,49 +41,50 @@ def rotula(fig):
         fig.suptitle(cfg.nome_curto, fontsize=10)
 
 
-# 1. sobrevivência: tábua empírica + Weibull
-fig, ax = plt.subplots(figsize=(8, 4.6))
-x = np.linspace(0, 60, 300)
-for classe in conf:
-    t = pd.read_csv(R / f"tabua_{classe}.csv")
-    t = t[t.expostos >= 30]
-    v = pr.loc[classe]
-    ax.step(np.r_[0, t.idade_fim], np.r_[1, t.S], where="post", color=COR[classe], lw=1.6,
-            label=f"{cfg.classes[classe]['nome']}: observado")
-    ax.fill_between(np.r_[0, t.idade_fim], np.r_[1, t.S_inf], np.r_[1, t.S_sup], step="post",
-                    color=COR[classe], alpha=0.15)
-    ax.plot(x, A.weibull_S(x - 0.5, v.beta, v.eta), color=COR[classe], ls="--", lw=1.2,
-            label=f"Weibull (vida mediana {v.mediana:.0f} anos, IC 90% {v.mediana_ic90_inf:.0f}-{v.mediana_ic90_sup:.0f})")
-ax.axhline(0.5, color="k", lw=0.6, alpha=0.5)
-ax.set(xlabel="idade (anos desde a imobilização)", ylabel="fração ainda em operação", ylim=(0, 1.02), xlim=(0, 60),
-       title=cfg.titulo(f"Curva de sobrevivência: observado ({janela}) e extrapolação de Weibull"))
-ax.legend(fontsize=8, loc="lower left")
-fig.tight_layout()
-fig.savefig(F / "01_sobrevivencia.png")
+if conf:
+    # 1. sobrevivência: tábua empírica + Weibull
+    fig, ax = plt.subplots(figsize=(8, 4.6))
+    x = np.linspace(0, 60, 300)
+    for classe in conf:
+        t = pd.read_csv(R / f"tabua_{classe}.csv")
+        t = t[t.expostos >= 30]
+        v = pr.loc[classe]
+        ax.step(np.r_[0, t.idade_fim], np.r_[1, t.S], where="post", color=COR[classe], lw=1.6,
+                label=f"{cfg.classes[classe]['nome']}: observado")
+        ax.fill_between(np.r_[0, t.idade_fim], np.r_[1, t.S_inf], np.r_[1, t.S_sup], step="post",
+                        color=COR[classe], alpha=0.15)
+        ax.plot(x, A.weibull_S(x - 0.5, v.beta, v.eta), color=COR[classe], ls="--", lw=1.2,
+                label=f"Weibull (vida mediana {v.mediana:.0f} anos, IC 90% {v.mediana_ic90_inf:.0f}-{v.mediana_ic90_sup:.0f})")
+    ax.axhline(0.5, color="k", lw=0.6, alpha=0.5)
+    ax.set(xlabel="idade (anos desde a imobilização)", ylabel="fração ainda em operação", ylim=(0, 1.02), xlim=(0, 60),
+           title=cfg.titulo(f"Curva de sobrevivência: observado ({janela}) e extrapolação de Weibull"))
+    ax.legend(fontsize=8, loc="lower left")
+    fig.tight_layout()
+    fig.savefig(F / "01_sobrevivencia.png")
 
-# 2. taxa anual de baixa por faixa de idade
-fx = pd.read_csv(R / "taxa_por_faixa.csv")
-fig, ax = plt.subplots(figsize=(8, 4))
-faixas = fx.faixa.unique()
-w = 0.76 / len(conf)
-for i, classe in enumerate(conf):
-    d = fx[fx.classe == classe].set_index("faixa").reindex(faixas)
-    pos = np.arange(len(faixas)) + (i - (len(conf) - 1) / 2) * w
-    ax.bar(pos, 100 * d.taxa_anual.fillna(0), width=w, color=COR[classe], label=cfg.classes[classe]["nome"])
-    for p_, (tx, b, e) in zip(pos, d[["taxa_anual", "baixas", "expostos"]].itertuples(index=False)):
-        if e and e > 0:
-            ax.text(p_, 100 * (0 if pd.isna(tx) else tx) + 0.3, f"{int(b)}/{int(e)}", ha="center", fontsize=6.5)
-ax.set_xticks(np.arange(len(faixas)), faixas)
-complemento = fig_cfg.get("complemento_taxa", ": o risco cresce com a idade")
-ax.set(xlabel="faixa de idade (anos)", ylabel="% baixados no ano",
-       title=cfg.titulo(f"Taxa anual de baixa por idade ({janela}){complemento}"))
-ax.legend()
-fig.tight_layout()
-fig.savefig(F / "02_taxa_por_idade.png")
+    # 2. taxa anual de baixa por faixa de idade
+    fx = pd.read_csv(R / "taxa_por_faixa.csv")
+    fig, ax = plt.subplots(figsize=(8, 4))
+    faixas = fx.faixa.unique()
+    w = 0.76 / len(conf)
+    for i, classe in enumerate(conf):
+        d = fx[fx.classe == classe].set_index("faixa").reindex(faixas)
+        pos = np.arange(len(faixas)) + (i - (len(conf) - 1) / 2) * w
+        ax.bar(pos, 100 * d.taxa_anual.fillna(0), width=w, color=COR[classe], label=cfg.classes[classe]["nome"])
+        for p_, (tx, b, e) in zip(pos, d[["taxa_anual", "baixas", "expostos"]].itertuples(index=False)):
+            if e and e > 0:
+                ax.text(p_, 100 * (0 if pd.isna(tx) else tx) + 0.3, f"{int(b)}/{int(e)}", ha="center", fontsize=6.5)
+    ax.set_xticks(np.arange(len(faixas)), faixas)
+    complemento = fig_cfg.get("complemento_taxa", ": o risco cresce com a idade")
+    ax.set(xlabel="faixa de idade (anos)", ylabel="% baixados no ano",
+           title=cfg.titulo(f"Taxa anual de baixa por idade ({janela}){complemento}"))
+    ax.legend()
+    fig.tight_layout()
+    fig.savefig(F / "02_taxa_por_idade.png")
 
 # 3. pirâmide etária da frota no último cadastro + tecnologia
 fig, axes = plt.subplots(1, 2, figsize=(10, 4))
-for classe in conf:
+for classe in conf or fig_cfg.get("classes_frota", ["religador", "disjuntor"]):
     m = pd.read_parquet(cfg.processed / f"matriz_{classe}.parquet")
     m.columns = m.columns.astype(int)
     f25 = m[base][m[base] > 0]
@@ -101,8 +105,9 @@ fig.savefig(F / "03_frota_2025.png")
 # 4. projeção de substituições de religadores e CAPEX ilustrativo
 pj = pd.read_csv(R / "projecao.csv")
 res = pd.read_csv(R / "projecao_resumo.csv").set_index("classe")
+val = pd.read_csv(R / "validacao.csv")
 d = pj[pj.classe == "religador"]
-if len(d):
+if "religador" in conf:
     fig, ax = plt.subplots(figsize=(8, 4.2))
     ax.bar(d.ano, d.substituicoes, color=COR["religador"], label="substituições esperadas")
     ax.errorbar(d.ano, d.substituicoes, yerr=[d.substituicoes - d.ic90_inf, d.ic90_sup - d.substituicoes],
@@ -124,26 +129,26 @@ else:
     print("religador sem projeção (classe não confiável): figura 04 não gerada")
 
 # 5. validação (religador)
-val = pd.read_csv(R / "validacao.csv")
-v = val[(val.classe == "religador") & (val.desenho == val.desenho.iloc[0])]
-aj = a["validacoes"][0]["ajuste"]
-fig, ax = plt.subplots(figsize=(7.5, 4))
-metodos = ["weibull", "taxa_constante", "idade_limite", "persistencia"]
-nomes = {"weibull": "Weibull", "taxa_constante": "taxa constante", "idade_limite": f"idade-limite {L} anos",
-         "persistencia": "persistência"}
-anos = sorted(v.ano.unique())
-w = 0.16
-for i, mt in enumerate(metodos):
-    d = v[v.metodo == mt].set_index("ano").reindex(anos)
-    ax.bar(np.arange(len(anos)) + (i - 1.5) * w, d.previsto, width=w, label=nomes[mt])
-obs = v[v.metodo == "weibull"].set_index("ano").reindex(anos).observado
-ax.scatter(np.arange(len(anos)) + 0.45, obs, color="k", zorder=3, marker="D", label="observado")
-ax.set_xticks(np.arange(len(anos)), anos)
-ax.set(ylabel="religadores baixados",
-       title=cfg.titulo(f"Validação fora da amostra (ajuste com {min(aj) + 1}-{max(aj) + 1})"))
-ax.legend(fontsize=8)
-fig.tight_layout()
-fig.savefig(F / "05_validacao.png")
+if "religador" in conf:
+    v = val[(val.classe == "religador") & (val.desenho == val.desenho.iloc[0])]
+    aj = a["validacoes"][0]["ajuste"]
+    fig, ax = plt.subplots(figsize=(7.5, 4))
+    metodos = ["weibull", "taxa_constante", "idade_limite", "persistencia"]
+    nomes = {"weibull": "Weibull", "taxa_constante": "taxa constante", "idade_limite": f"idade-limite {L} anos",
+             "persistencia": "persistência"}
+    anos = sorted(v.ano.unique())
+    w = 0.16
+    for i, mt in enumerate(metodos):
+        d = v[v.metodo == mt].set_index("ano").reindex(anos)
+        ax.bar(np.arange(len(anos)) + (i - 1.5) * w, d.previsto, width=w, label=nomes[mt])
+    obs = v[v.metodo == "weibull"].set_index("ano").reindex(anos).observado
+    ax.scatter(np.arange(len(anos)) + 0.45, obs, color="k", zorder=3, marker="D", label="observado")
+    ax.set_xticks(np.arange(len(anos)), anos)
+    ax.set(ylabel="religadores baixados",
+           title=cfg.titulo(f"Validação fora da amostra (ajuste com {min(aj) + 1}-{max(aj) + 1})"))
+    ax.legend(fontsize=8)
+    fig.tight_layout()
+    fig.savefig(F / "05_validacao.png")
 
 # 6. qualidade do cadastro: contagem por safra, classes de comparação (MT: religador, estável, e regulador, instável)
 fig, axes = plt.subplots(1, 2, figsize=(10, 3.8), sharex=True)
@@ -160,4 +165,25 @@ axes[0].set_ylabel("equipamentos")
 rotula(fig)
 fig.tight_layout()
 fig.savefig(F / "06_qualidade_cadastro.png")
+
+# 7. acréscimos em safras antigas por baixa, em cada transição (o teste de consistência olha esta razão)
+if fig_cfg.get("reversoes_por_transicao", False):
+    fig, ax = plt.subplots(figsize=(8, 4))
+    trs = cfg.anos[:-1]
+    for classe in cfg.classes:
+        m = pd.read_parquet(cfg.processed / f"matriz_{classe}.parquet")
+        m.columns = m.columns.astype(int)
+        r = []
+        for t in trs:
+            mov = C.movimentos(m, [t])
+            r.append(mov.acrescimos.sum() / mov.baixas.sum() if mov.baixas.sum() else np.nan)
+        ax.plot(range(len(trs)), r, marker="o", color=COR[classe], label=cfg.classes[classe]["nome"])
+    ax.axhline(a["limite_reversoes"], color="k", ls="--", lw=1, label=f"limite do teste ({a['limite_reversoes']})")
+    ax.set_yscale("symlog", linthresh=0.1)
+    ax.set_xticks(range(len(trs)), [f"{t}→{t + 1}" for t in trs])
+    ax.set(xlabel="transição entre cadastros", ylabel="acréscimos / baixas em safras antigas (escala symlog)",
+           title=cfg.titulo("Acréscimos por baixa, por transição"))
+    ax.legend(fontsize=8)
+    fig.tight_layout()
+    fig.savefig(F / "07_reversoes_por_transicao.png")
 print("ok")

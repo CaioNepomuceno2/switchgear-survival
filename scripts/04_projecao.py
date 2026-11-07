@@ -18,6 +18,11 @@ base_ano = cfg.ano_base
 pj = cfg["projecao"]
 vida = pd.read_csv(OUT / "vida_weibull.csv")
 eq = pd.read_parquet(cfg.processed / "equipamentos.parquet")
+anos_novos = range(cfg.anos[1], base_ano + 1)
+COLS_PROJ = ["classe", "ano", "substituicoes", "ic90_inf", "ic90_sup", "idade_media_frota", "capex_rs_mi"]
+COLS_RESUMO = ["classe", f"frota_{base_ano}", "substituicoes_2026_2035", "ic90_inf", "ic90_sup",
+               f"frac_da_frota_{base_ano}", "capex_2026_2035_rs_mi", "custo_unitario_rs_ilustrativo",
+               f"novos_por_ano_{anos_novos[0]}_{base_ano}_media"]
 linhas, resumo = [], []
 for classe in cfg.classes:
     v = vida[(vida.classe == classe) & (vida.cenario == "principal")].iloc[0]
@@ -45,12 +50,14 @@ for classe in cfg.classes:
                    "capex_2026_2035_rs_mi": base.substituicoes.sum() * custo / 1e6 if custo else np.nan,
                    "custo_unitario_rs_ilustrativo": custo})
     # contexto: entrada de equipamentos novos (safra = ano do cadastro) observada
-    anos_novos = range(cfg.anos[1], base_ano + 1)
     novos = {t: int(m.at[t, t]) if t in m.index else 0 for t in anos_novos}
     resumo[-1][f"novos_por_ano_{anos_novos[0]}_{base_ano}_media"] = float(np.mean(list(novos.values())))
 
-proj = pd.DataFrame(linhas)
+# nenhuma classe confiável (acontece em MS): os arquivos saem só com o cabeçalho, sem projeção
+if not resumo:
+    print("nenhuma classe passou no teste de consistência: sem projeção")
+proj = pd.DataFrame(linhas, columns=COLS_PROJ)
 proj.to_csv(OUT / "projecao.csv", index=False)
-pd.DataFrame(resumo).to_csv(OUT / "projecao_resumo.csv", index=False)
+pd.DataFrame(resumo, columns=COLS_RESUMO).to_csv(OUT / "projecao_resumo.csv", index=False)
 print(proj.round(1).to_string(index=False))
-print(pd.DataFrame(resumo).round(2).to_string(index=False))
+print(pd.DataFrame(resumo, columns=COLS_RESUMO).round(2).to_string(index=False))

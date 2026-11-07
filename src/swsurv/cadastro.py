@@ -96,11 +96,11 @@ def qualidade_classe(mov: pd.DataFrame) -> dict:
             "expostos_ano_medio": float(mov.groupby("transicao").expostos.sum().mean()) if len(mov) else 0.0}
 
 
-def safras_nao_monotonas(m: pd.DataFrame, anos: list[int], minimo: int = 10) -> float:
-    """Fração das safras (com ao menos `minimo` equipamentos) cuja contagem SOBE depois de ter
-    caído dentro da janela `anos`. Numa frota real, uma safra só perde equipamentos."""
+def safras_nao_monotonas_detalhe(m: pd.DataFrame, anos: list[int], minimo: int = 10) -> pd.Series:
+    """Para cada safra com ao menos `minimo` equipamentos e 3 ou mais cadastros na janela `anos`: True se a
+    contagem SOBE depois de ter caído. Numa frota real, uma safra só perde equipamentos."""
     cols = [a for a in anos if a in m.columns]
-    flags = []
+    flags = {}
     for v, row in m[cols].iterrows():
         serie = row[[a for a in cols if a >= v]].to_numpy()
         if len(serie) < 3 or serie.max() < minimo:
@@ -113,8 +113,15 @@ def safras_nao_monotonas(m: pd.DataFrame, anos: list[int], minimo: int = 10) -> 
             elif x1 > x0 and caiu:
                 ruim = True
                 break
-        flags.append(ruim)
-    return float(np.mean(flags)) if flags else np.nan
+        flags[v] = ruim
+    return pd.Series(flags, dtype=bool)
+
+
+def safras_nao_monotonas(m: pd.DataFrame, anos: list[int], minimo: int = 10) -> float:
+    """Fração das safras (com ao menos `minimo` equipamentos) cuja contagem SOBE depois de ter
+    caído dentro da janela `anos`. Numa frota real, uma safra só perde equipamentos."""
+    flags = safras_nao_monotonas_detalhe(m, anos, minimo)
+    return float(flags.mean()) if len(flags) else np.nan
 
 
 def estabilidade_ids(cache: Path, anos: list[int], camada: str, tuc: str,

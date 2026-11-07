@@ -75,8 +75,10 @@ for classe in cfg.classes:
     g = mov.groupby("faixa", observed=False)[["expostos", "baixas"]].sum().reset_index()
     g["taxa_anual"] = g.baixas / g.expostos.replace(0, np.nan)
     fx.append(g.assign(classe=classe))
-pd.concat(fx).to_csv(OUT / "taxa_por_faixa.csv", index=False)
-print(pd.concat(fx).round(4).to_string(index=False))
+# nenhuma classe confiável (acontece em MS): o arquivo sai só com o cabeçalho
+taxa = pd.concat(fx) if fx else pd.DataFrame(columns=["faixa", "expostos", "baixas", "taxa_anual", "classe"])
+taxa.to_csv(OUT / "taxa_por_faixa.csv", index=False)
+print(taxa.round(4).to_string(index=False))
 
 vida = pd.DataFrame(linhas)
 vida.to_csv(OUT / "vida_weibull.csv", index=False)
