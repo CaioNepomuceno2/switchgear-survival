@@ -251,6 +251,16 @@ export SWSURV_CACHE=/dados/bdgd-cache          # bash
 $env:SWSURV_CACHE = "D:\dados\bdgd-cache"      # PowerShell
 ```
 
+**Outra distribuidora.** Os scripts leem `configs/premissas.yaml` (Energisa MT) por padrão. Para a Energisa MS, passe
+`--config configs/premissas_ems.yaml` a cada script ou defina `SWSURV_CONFIG=configs/premissas_ems.yaml`; o argumento
+vale mais que a variável, que vale mais que o padrão. As saídas de MS ficam em `reports/ems/`, `data/ems/processed/` e
+`data/cache/ems/`, e nada de MT é lido nem alterado. `SWSURV_CACHE` continua valendo para qualquer configuração (e o
+pipeline para se o cache for de outra distribuidora, pela coluna `DIST` da BDGD).
+
+**Zips da BDGD já baixados.** `python scripts/00_baixar_bdgd.py --config configs/premissas_ems.yaml --zips PASTA` (ou
+a variável `SWSURV_BDGD_ZIPS`) lê `bdgd_<ano>_<item>.gdb.zip` de cada ano direto do zip, só nas quatro camadas
+necessárias, sem baixar, sem extrair e sem alterar o zip. Sem `--zips`, o script baixa do ArcGIS, como em MT.
+
 O `pytest` não baixa nada: os testes usam só dados sintéticos minúsculos, gerados no próprio teste.
 
 ## Estrutura
@@ -260,10 +270,12 @@ src/swsurv/
   cadastro.py   leitura da BDGD, safras, matriz safra x cadastro, movimentos, diagnóstico e rastreamento
   atuarial.py   tábua de vida (Greenwood), Weibull por máxima verossimilhança, bootstrap por safra
   projecao.py   projeção com reposição, baselines da validação
-scripts/        00 a 05, do download às figuras
-configs/        premissas
-docs/           metodologia
-reports/        tabelas e figuras
+  bdgd.py       BDGD (.gdb baixado ou zip local) para o cache por camada
+  config.py     configuração por distribuidora (--config, SWSURV_CONFIG, SWSURV_CACHE)
+scripts/        00 a 05, do download às figuras; diagnostico_bdgd.py, o diagnóstico dos dados
+configs/        premissas (MT) e premissas_ems (Energisa MS)
+docs/           metodologia; decisoes_ems e resultados_ems (Energisa MS)
+reports/        tabelas e figuras de MT; reports/ems tem as de MS
 ```
 
 ## Limitações
@@ -285,6 +297,37 @@ reports/        tabelas e figuras
 * **Custos e vida regulatória.** O custo do religador é ilustrativo. A vida regulatória segue em branco: o PDF da
   Tabela XVI do manual de controle patrimonial não pôde ser lido (HTTP 403 do site da ANEEL) e nenhum valor foi
   estimado.
+
+## Energisa MS
+
+O mesmo método foi aplicado à **Energisa Mato Grosso do Sul** (código ANEEL 404) com os oito cadastros da BDGD (31/12 de
+2018 a 2025). Escolhas de dados e testes de cada premissa herdada de MT: [docs/decisoes_ems.md](docs/decisoes_ems.md),
+escritas antes de qualquer resultado. Resultados: [docs/resultados_ems.md](docs/resultados_ems.md) e
+[`reports/ems/`](reports/ems/).
+
+**O cadastro de MS não passa no teste de consistência em nenhuma das quatro classes, então não há vida mediana nem
+projeção de trocas para MS.** Em MT, a contagem de equipamentos por safra só cai com o tempo, e é isso que permite
+medir baixas. Em MS ela sobe e desce de um cadastro para o outro, e boa parte das "baixas" parece ser troca de data
+no cadastro, e não retirada de equipamento (o cadastro não diz o motivo).
+
+| | Religador | Disjuntor (alta e média tensão) | Chave | Regulador |
+|---|---|---|---|---|
+| Frota no cadastro de 2025 | 2.654 | 455 | 98.745 | 946 |
+| Baixas observadas 2021→2025 (líquidas, por safra) | 790 | 49 | 59.660 | 368 |
+| Acréscimos em safras antigas, no mesmo período | 550 | 6 | 53.018 | 241 |
+| Acréscimos por baixa (limite 0,25) | 0,696 | 0,122 | 0,889 | 0,655 |
+| Safras que voltam a subir (limite 10%) | 75,9% | 12,5% | 93,3% | 52,6% |
+| Vida mediana com intervalo | não estimada | não estimada | não estimada | não estimada |
+| Substituições 2026-2035 e custo ilustrativo | não feitos | não feitos | não feitos | não feitos |
+
+* Em MT, religador e disjuntor passam no teste (acréscimos por baixa de 0,000 nos dois). Só o disjuntor de MS chega
+  perto: passa no critério de acréscimos e reprova no de safras, por duas safras que oscilam em um equipamento.
+* Pontos de religador que somem do mapa em um ano: de 3 a 21 de 2020 a 2025, contra 47 a 296 "baixas" por safra no
+  mesmo período.
+* Limitações próprias de MS: janela curta (só 2020 a 2025 têm data de imobilização; 2018 e 2019 trazem `01/01/1920`
+  em tudo), contagem líquida por safra, 71% dos equipamentos da `EQSE` sem classe nem data (TUC 000, fora das quatro
+  classes) e disjuntores de alta tensão dentro do TUC 210. A vida útil regulatória segue em branco, como em MT.
+* Os ajustes de Weibull de `reports/ems/vida_weibull.csv` saem com `confiavel = False` e **não são estimativas**.
 
 ---
 Autor: **Caio Nepomuceno**. Dados públicos da ANEEL (BDGD). Projeto independente, sem vínculo com a Energisa ou com a
