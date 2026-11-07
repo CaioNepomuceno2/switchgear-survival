@@ -1,0 +1,17 @@
+classe,ano_do_meio,ids_nos_3_cadastros,mesma_safra_antes_e_depois,outra_safra_no_meio,pct_outra_no_meio
+religador,2021,421,60,26,43.33
+religador,2022,1350,88,24,27.27
+religador,2023,1948,372,212,56.99
+religador,2024,1993,309,119,38.51
+disjuntor,2021,7,2,1,50.0
+disjuntor,2022,97,65,2,3.08
+disjuntor,2023,378,198,9,4.55
+disjuntor,2024,402,212,30,14.15
+chave,2021,52784,4157,3023,72.72
+chave,2022,61615,2316,1444,62.35
+chave,2023,70466,5291,3351,63.33
+chave,2024,73219,10425,5591,53.63
+regulador,2021,10,0,0,
+regulador,2022,383,62,39,62.9
+regulador,2023,652,83,49,59.04
+regulador,2024,681,123,44,35.77

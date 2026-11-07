@@ -30,13 +30,71 @@ bdgd:
   # variável SWSURV_BDGD_ZIPS (um caminho de outra máquina não deve ficar neste arquivo público). Sem pasta,
   # scripts/00_baixar_bdgd.py baixa do ArcGIS, como em MT.
   zips_locais: null
+  # 2018 e 2019 (modelo M10) trazem DAT_IMO = 01/01/1920 em 100% dos equipamentos das quatro classes: ficam de fora,
+  # como em MT. De 2020 em diante a data é válida em 88,9% a 100% (docs/decisoes_ems.md, seção 3).
+  anos_com_data: [2020, 2021, 2022, 2023, 2024, 2025]
 
-# Classes de ativo pelo Tipo de Unidade de Cadastro (TUC). Hipótese herdada de MT, conferida nos dados de MS em
-# docs/decisoes_ems.md (scripts/diagnostico_bdgd.py).
+# Classes de ativo pelo Tipo de Unidade de Cadastro (TUC): os mesmos códigos de MT, conferidos nos dados de MS
+# (docs/decisoes_ems.md, seção 4). Mudou só o rótulo do 210: 69% dos TUC 210 de MS (316 de 455 em 2025) estão em
+# alta tensão (GRU_TEN = AT), então "disjuntor de média tensão" seria impreciso.
 classes:
   religador:   {camada: EQSE, tuc: "345", nome: "Religador"}
-  disjuntor:   {camada: EQSE, tuc: "210", nome: "Disjuntor de média tensão"}
+  disjuntor:   {camada: EQSE, tuc: "210", nome: "Disjuntor (alta e média tensão)"}
   chave:       {camada: EQSE, tuc: "160", nome: "Chave (seccionadora e fusível)"}
   regulador:   {camada: EQRE, tuc: "340", nome: "Regulador de tensão"}
 
-# --- definido em docs/decisoes_ems.md (commit seguinte), a partir dos diagnósticos de dados de MS ---------
+# Rastreamento dos pontos de religador (UNSEMT). TIP_UNID 32 confere em MS (seção 4). A latitude de referência, que
+# converte graus de longitude em metros, é a mediana dos pontos de religador de MS em 2019 a 2025 (-20,5 a -20,7).
+pontos:
+  tip_unid_religador: "32"
+  tolerancia_m: 30
+  lat_ref_graus: -20.6
+
+# Mesmas janelas e limiares de MT (seções 5 e 6 de docs/decisoes_ems.md): os dados de MS não dão motivo para mudar
+# nenhum deles, e mudar um limiar depois de ver os indicadores seria ajustar o teste ao resultado.
+analise:
+  # transições usadas no ajuste principal (ano do cadastro inicial -> seguinte)
+  transicoes_principal: [2021, 2022, 2023, 2024]
+  # 2020->2021 é o ano em que as datas passam a ser preenchidas (88,9% dos disjuntores e 90,9% das chaves datados em
+  # 2020): vira sensibilidade, como em MT
+  transicoes_sensibilidade: [2020, 2021, 2022, 2023, 2024]
+  nome_cenario_sensibilidade: com_2020_2021
+  sufixo_sensibilidade: com_2021
+  # validação fora da amostra (transição t = cadastro t -> t+1)
+  validacoes:
+    - {nome: "ajuste 2022-2023, teste 2024-2025", ajuste: [2021, 2022], teste: [2023, 2024]}
+    - {nome: "ajuste 2022-2024, teste 2025", ajuste: [2021, 2022, 2023], teste: [2024]}
+  # baseline "idade-limite": troca tudo que atinge esta idade (parâmetro, não é a vida regulatória)
+  idade_limite_anos: 25
+  # limiar de qualidade: acréscimos em safras antigas / quedas acima disto => classe não confiável
+  limite_reversoes: 0.25
+  # e/ou fração de safras cuja contagem volta a subir depois de cair acima disto => não confiável
+  limite_nao_monotonas: 0.10
+  bootstrap: 500
+  seed: 7
+
+projecao:
+  inicio: 2026
+  fim: 2035
+  # custo unitário de substituição (R$, material + instalação) - ILUSTRATIVO; null = sem custo.
+  # Só entra na conta se alguma classe passar no teste de consistência (hoje nenhuma passa em MS).
+  custo_unitario_rs:
+    religador: 160000     # mesma premissa ilustrativa de MT e do projeto automation-impact
+    disjuntor: null
+    chave: null
+    regulador: null
+  # Vida útil regulatória (anos): em branco em MS, pelo mesmo motivo de MT. A Tabela XVI do Manual de Controle
+  # Patrimonial (anexo da REN ANEEL 674/2015) não pôde ser lida (o site da ANEEL respondeu HTTP 403 ao acesso
+  # automatizado em 06/11/2026) e cópias de terceiros não foram usadas. Nenhum código do projeto lê este parâmetro.
+  vida_util_regulatoria_anos:
+    religador: null
+    disjuntor: null
+    chave: null
+    regulador: null
+
+figuras:
+  rotular_distribuidora: true          # acrescenta "Energisa MS" ao título das figuras
+  complemento_taxa: ""                 # MT escreve ": o risco cresce com a idade", conclusão que MS não tem
+  classes_frota: [religador, disjuntor]    # figura 03 quando nenhuma classe passa no teste
+  classes_qualidade: [religador, disjuntor]  # figura 06 (contagem por safra)
+  reversoes_por_transicao: true        # figura 07

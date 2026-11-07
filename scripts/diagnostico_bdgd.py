@@ -187,6 +187,17 @@ for inicio in [x for x in anos if x < ultimo]:
                      "passa_limites_de_mt": bool(q["baixas"] and q["reversoes"] <= lim_rev and nm <= lim_nm)})
 salva(pd.DataFrame(cand), "janelas_candidatas.csv")
 
+# safras que reprovam no teste de não monotonicidade na janela principal da configuração (contagem em cada cadastro)
+if "transicoes_principal" in a:
+    jp = a["transicoes_principal"]
+    anos_p = sorted({t for t in jp} | {t + 1 for t in jp})
+    ruins = []
+    for classe, m in matrizes.items():
+        det = C.safras_nao_monotonas_detalhe(m, anos_p)
+        for v in det[det].index:
+            ruins.append({"classe": classe, "safra": int(v), **{str(x): int(m.at[v, x]) for x in anos_p}})
+    salva(pd.DataFrame(ruins), "safras_que_voltam_a_subir.csv")
+
 # 7. pontos de religador: extensão e latitude de referência -----------------------------------------------------
 tip = cfg.pontos["tip_unid"]
 pts = []

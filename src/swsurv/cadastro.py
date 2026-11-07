@@ -6,6 +6,11 @@ dos casos, e os COD_ID são renumerados em massa em alguns anos (2019->2020, 202
 Já a contagem de equipamentos por ano de imobilização (safra) é estável e só cai, ano a ano,
 com as baixas. É o mesmo tipo de dado usado em estudos de depreciação de concessionárias
 ("aged data"), e o método atuarial de taxas de retirada é o adequado para ele.
+
+Essa estabilidade vale para religadores e disjuntores da EMT. Na EMS nenhuma das quatro classes passa no teste
+de consistência com os limites de MT: a contagem por safra sobe e desce de um cadastro para o outro
+(docs/decisoes_ems.md). O teste (`qualidade_classe`, `safras_nao_monotonas`) existe para detectar isso antes de
+ajustar qualquer curva.
 """
 from __future__ import annotations
 
