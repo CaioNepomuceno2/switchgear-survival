@@ -14,7 +14,7 @@ curva de Weibull, o método atuarial usado em estudos de depreciação de conces
 
 ## Resultados em uma tela
 
-| | Religadores | Disjuntores de MT |
+| | Religadores | Disjuntores (TUC 210, alta e média tensão) |
 |---|---|---|
 | Frota no cadastro de 2025 | 3.556 | 678 |
 | Idade média da frota em 2025 | 7,3 anos | 13,0 anos |
@@ -288,6 +288,10 @@ reports/        tabelas e figuras de MT; reports/ems tem as de MS
   intervalos são largos, e a vida mediana dos disjuntores é extrapolação.
 * **Sensibilidade à transição 2020→2021.** Com ela, a vida mediana dos religadores muda pouco (31 anos), mas a dos
   disjuntores cai para 24 anos, por causa de 79 baixas concentradas naquele ano.
+* **A classe de disjuntores mistura tensões.** No cadastro de 2025, o TUC 210 tem 678 equipamentos: 423 de alta
+  tensão (campo `GRU_TEN` = AT) e 255 de média. A vida e a projeção dos disjuntores valem para a classe inteira, não só
+  para a média tensão, e não foram separadas por tensão. Versões anteriores deste README e da configuração chamavam a
+  classe de "Disjuntores de MT".
 * **Sem estratificação por tecnologia, corrente nominal ou telecomando.** Esses atributos não ficam presos à safra
   de forma estável no cadastro.
 * **Equipamentos sem data.** A projeção reescala os 14% de disjuntores sem data válida supondo a mesma distribuição

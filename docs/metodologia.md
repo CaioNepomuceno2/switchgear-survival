@@ -8,7 +8,7 @@ quantos precisarão ser substituídos por ano e quanto isso custa.
 | Classe | Fonte na BDGD | Identificação |
 |---|---|---|
 | Religador | camada EQSE (equipamento de seccionamento) | TUC 345 |
-| Disjuntor de média tensão | EQSE | TUC 210 |
+| Disjuntor (alta e média tensão) | EQSE | TUC 210 |
 | Chave (seccionadora e fusível) | EQSE | TUC 160 |
 | Regulador de tensão | EQRE (equipamento regulador) | TUC 340 |
 

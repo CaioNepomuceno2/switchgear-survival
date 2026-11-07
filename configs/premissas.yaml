@@ -31,7 +31,7 @@ bdgd:
 # ligação na própria BDGD (equipamentos das unidades TIP_UNID=32 têm TUC 345; a camada EQRE tem TUC 340).
 classes:
   religador:   {camada: EQSE, tuc: "345", nome: "Religador"}
-  disjuntor:   {camada: EQSE, tuc: "210", nome: "Disjuntor de média tensão"}
+  disjuntor:   {camada: EQSE, tuc: "210", nome: "Disjuntor (alta e média tensão)"}
   chave:       {camada: EQSE, tuc: "160", nome: "Chave (seccionadora e fusível)"}
   regulador:   {camada: EQRE, tuc: "340", nome: "Regulador de tensão"}
 
