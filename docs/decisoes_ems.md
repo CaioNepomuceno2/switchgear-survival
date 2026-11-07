@@ -21,7 +21,7 @@ ser mantida ou trocada. As decisões, os caminhos e os resultados de MT **não m
 | 4 | Classes por TUC | Os 4 códigos e as camadas EQSE/EQRE existem nos 8 snapshots e significam o mesmo; 69% dos TUC 210 estão em alta tensão | Mesmos códigos de MT; só o rótulo do 210 muda para "Disjuntor (alta e média tensão)" |
 | 5 | Limiares de qualidade | Nenhuma classe passa nos limites de MT (0,25 e 0,10) em nenhuma janela candidata | **Mantidos**; resultado esperado: diagnóstico do cadastro, sem estimativa de vida |
 | 6 | Janelas | A transição 2020→2021 coincide com o preenchimento das datas (disjuntores datados: 343 → 396) | Principal 2021→2025, sensibilidade com 2020, validações como em MT |
-| 7 | Pontos de religador | `TIP_UNID` 32 confere; 100% dos pontos têm coordenada, dentro de MS; latitude mediana -20,5 a -20,7 | Latitude de referência -20,6 (MT usa -13) |
+| 7 | Pontos de religador | `TIP_UNID` 32 confere; 100% dos pontos têm coordenada, compatível com a extensão de MS; latitude mediana -20,5 a -20,7 | Latitude de referência -20,6 (MT usa -13) |
 | 8 | Vida útil regulatória | O PDF da Tabela XVI do MCPSE continua inacessível (HTTP 403 em 06/11/2026) | Em branco, como em MT |
 
 ## 1. Fonte e cache
@@ -126,8 +126,8 @@ O que cada código significa em MS, medido contra o tipo da unidade a que o equi
   unidade"): são disjuntores de alta tensão, de unidades de outra camada. Isso vale em todos os anos com `GRU_TEN`
   (2021 a 2025: 125 a 140 MT e 278 a 316 AT). O código 210 significa "disjuntor" em qualquer tensão, e o rótulo
   "Disjuntor de média tensão", herdado da configuração de MT, não vale para a classe inteira. **Decisão:** manter o 210
-  e chamar a classe de "Disjuntor (alta e média tensão)" nos arquivos de MS. (Os dados de MT não foram relidos aqui; o
-  rótulo do README de MT não foi alterado.)
+  e chamar a classe de "Disjuntor (alta e média tensão)" nos arquivos de MS. (Nenhum número de MT deste documento vem de
+  releitura dos dados de MT; o rótulo do README de MT não foi alterado.)
 * **Chave (160).** O código existe nos 8 anos, em unidades de vários tipos (em 2025, `TIP_UNID` 19 e 22 somam
   90.685 dos 98.745 equipamentos), mas a **composição muda**. Entre 2019 e 2020 a maior parte das chaves fusíveis (`TIP_UNID` 22: 234.541 em 2019)
   passa do TUC 160 para o TUC 000 (160.926 em 2020), e o TUC 000 só cresce depois (245.126 em 2025). Dentro do TUC 160,
@@ -204,7 +204,7 @@ baixa a transição 2021→2022 do religador (0,128) e três do disjuntor (2021�
 
 [`pontos_religador.csv`](../reports/ems/diagnostico/pontos_religador.csv): os pontos de religador (`UNSEMT`,
 `TIP_UNID` 32) vão de 1.730 (2018) a 2.646 (2025), e 100% têm coordenada. O 1º e o 99º percentil da longitude ficam
-entre -57,7 e -51,1 e os da latitude entre -23,9 e -17,9 (2019 a 2025), dentro de MS. A latitude mediana é -20,5 a
+entre -57,7 e -51,1 e os da latitude entre -23,9 e -17,9 (2019 a 2025), compatíveis com a extensão de MS. A latitude mediana é -20,5 a
 -20,7 de 2019 a 2025 (-22,2 em 2018). Este repositório usa longitude e latitude em graus (convertidas para WGS84),
 não a coordenada UTM codificada no `PAC`; a questão dos fusos 21S e 22S de MS não se aplica aqui. A conversão de graus
 em metros do rastreamento usa a latitude de referência, que em MT é fixa (-13°). **Decisão:** parâmetro
