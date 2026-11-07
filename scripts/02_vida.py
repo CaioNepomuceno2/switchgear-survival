@@ -1,10 +1,12 @@
 """Tábua de vida, curva de Weibull e idade da frota por classe.
 
-Saídas:
-  reports/vida_weibull.csv     beta, eta, vida mediana (IC 90% por bootstrap de safras), taxa de baixa
-  reports/tabua_<classe>.csv   tábua de vida empírica com IC de Greenwood
-  reports/idade_frota_2025.csv distribuição de idade da frota 2025 e fração acima da mediana
-  reports/tecnologia_religador_2025.csv meio de isolação por década de imobilização
+Saídas (em <reports>; <base> = último cadastro, 2025):
+  vida_weibull.csv     beta, eta, vida mediana (IC 90% por bootstrap de safras), taxa de baixa
+  tabua_<classe>.csv   tábua de vida empírica com IC de Greenwood
+  idade_frota_<base>.csv distribuição de idade da frota e fração acima da mediana
+  tecnologia_religador_<base>.csv meio de isolação por década de imobilização
+
+Outra distribuidora: --config configs/premissas_ems.yaml (ou SWSURV_CONFIG).
 """
 import json
 
@@ -13,11 +15,14 @@ import pandas as pd
 
 from swsurv import atuarial as A
 from swsurv import cadastro as C
-from swsurv.config import ROOT, Config
+from swsurv.config import carregar
 
-cfg = Config.load()
-OUT = ROOT / "reports"
+cfg = carregar(__doc__)
+OUT = cfg.reports
+OUT.mkdir(parents=True, exist_ok=True)
+base = cfg.ano_base
 a = cfg["analise"]
+nome_sens = a.get("nome_cenario_sensibilidade", "com_2020_2021")
 qual = pd.read_csv(OUT / "qualidade_classes.csv").set_index("classe")
 eq = pd.read_parquet(cfg.processed / "equipamentos.parquet")
 
@@ -26,7 +31,7 @@ for classe in cfg.classes:
     m = pd.read_parquet(cfg.processed / f"matriz_{classe}.parquet")
     m.columns = m.columns.astype(int)
     conf = bool(qual.at[classe, "confiavel"])
-    for cenario, trans in [("principal", a["transicoes_principal"]), ("com_2020_2021", a["transicoes_sensibilidade"])]:
+    for cenario, trans in [("principal", a["transicoes_principal"]), (nome_sens, a["transicoes_sensibilidade"])]:
         mov = C.movimentos(m, trans)
         f = A.ajusta_weibull(mov)
         reg = {"classe": classe, "cenario": cenario, "confiavel": conf, **f}
@@ -43,12 +48,12 @@ for classe in cfg.classes:
             reg["idade_max_com_50_expostos"] = int(ok.idade_fim.max() - 1) if len(ok) else 0
             reg["S_empirica_na_idade_max"] = float(ok.S.iloc[-1]) if len(ok) else np.nan
         linhas.append(reg)
-    # idade da frota em 2025
-    f25 = m[2025][m[2025] > 0]
-    idade = 2025 - f25.index.to_numpy()
+    # idade da frota no último cadastro
+    f25 = m[base][m[base] > 0]
+    idade = base - f25.index.to_numpy()
     principal = next(r for r in linhas if r["classe"] == classe and r["cenario"] == "principal")
     med = principal["mediana"]
-    idades.append({"classe": classe, "frota_datada_2025": int(f25.sum()),
+    idades.append({"classe": classe, f"frota_datada_{base}": int(f25.sum()),
                    "idade_media": float(np.average(idade, weights=f25)),
                    "idade_mediana": float(np.median(np.repeat(idade, f25.to_numpy()))),
                    "frac_10_anos_ou_mais": float(f25[idade >= 10].sum() / f25.sum()),
@@ -75,13 +80,13 @@ print(pd.concat(fx).round(4).to_string(index=False))
 
 vida = pd.DataFrame(linhas)
 vida.to_csv(OUT / "vida_weibull.csv", index=False)
-pd.DataFrame(idades).to_csv(OUT / "idade_frota_2025.csv", index=False)
+pd.DataFrame(idades).to_csv(OUT / f"idade_frota_{base}.csv", index=False)
 
-# tecnologia (meio de isolação) dos religadores no cadastro 2025, por década de imobilização
-r25 = eq[(eq.classe == "religador") & (eq.ano == 2025)].dropna(subset=["safra"]).copy()
+# tecnologia (meio de isolação) dos religadores no último cadastro, por década de imobilização
+r25 = eq[(eq.classe == "religador") & (eq.ano == base)].dropna(subset=["safra"]).copy()
 r25["decada"] = (r25.safra.astype(int) // 10) * 10
 tec = r25.groupby(["decada", "MEI_ISO"]).size().unstack(fill_value=0)
-tec.to_csv(OUT / "tecnologia_religador_2025.csv")
+tec.to_csv(OUT / f"tecnologia_religador_{base}.csv")
 
 print(vida.round(3).to_string(index=False))
 print(pd.DataFrame(idades).round(3).to_string(index=False))

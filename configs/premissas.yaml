@@ -1,11 +1,16 @@
 # Recorte: Energisa Mato Grosso (EMT), cadastro BDGD de 31/12 de cada ano.
+# Esta é a configuração padrão (sem --config nem SWSURV_CONFIG). Energisa MS: configs/premissas_ems.yaml.
 distribuidora: EMT
+cod_aneel: 405          # confere a coluna DIST da BDGD (impede ler o cache de outra distribuidora)
+nome: Energisa Mato Grosso
+nome_curto: Energisa MT
 
 paths:
   # cache por camada (scripts/00_baixar_bdgd.py recria do zero). Relativo à raiz do projeto;
   # a variável de ambiente SWSURV_CACHE, se definida, tem prioridade (ver README, "Reproduzir").
   cache: data/cache
   processed: data/processed
+  reports: reports
 
 bdgd:
   # id do item no ArcGIS Hub da ANEEL (mesmos IDs do projeto distribution-asset-risk)
