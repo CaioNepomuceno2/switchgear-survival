@@ -98,6 +98,8 @@ tec.plot(kind="bar", stacked=True, ax=axes[1], color=paleta[: tec.shape[1]])
 axes[1].set(xlabel="década de imobilização", ylabel=f"religadores ({base})",
             title="Religadores: meio de isolação por década (código BDGD)")
 axes[1].legend(title="MEI_ISO", fontsize=8)
+if cfg.rotular_figuras:
+    axes[1].title.set_fontsize(9)  # o título cabe ao lado do rótulo da distribuidora
 rotula(fig)
 fig.tight_layout()
 fig.savefig(F / "03_frota_2025.png")
@@ -180,6 +182,7 @@ if fig_cfg.get("reversoes_por_transicao", False):
         ax.plot(range(len(trs)), r, marker="o", color=COR[classe], label=cfg.classes[classe]["nome"])
     ax.axhline(a["limite_reversoes"], color="k", ls="--", lw=1, label=f"limite do teste ({a['limite_reversoes']})")
     ax.set_yscale("symlog", linthresh=0.1)
+    ax.set_ylim(bottom=0)
     ax.set_xticks(range(len(trs)), [f"{t}→{t + 1}" for t in trs])
     ax.set(xlabel="transição entre cadastros", ylabel="acréscimos / baixas em safras antigas (escala symlog)",
            title=cfg.titulo("Acréscimos por baixa, por transição"))
