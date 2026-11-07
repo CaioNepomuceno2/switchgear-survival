@@ -19,7 +19,8 @@ dependencies = [
 
 [project.optional-dependencies]
 dados = ["pyogrio>=0.9", "geopandas>=1.0", "requests>=2.32"]
-dev = ["pytest>=8", "ruff>=0.6"]
+# pyogrio e geopandas: os testes criam um File Geodatabase minúsculo para exercitar a leitura de zips locais
+dev = ["pytest>=8", "ruff>=0.6", "pyogrio>=0.9", "geopandas>=1.0"]
 
 [tool.setuptools.packages.find]
 where = ["src"]

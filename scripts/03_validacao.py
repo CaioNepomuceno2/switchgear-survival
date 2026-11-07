@@ -7,7 +7,8 @@ idade-limite fixa (troca tudo que completa N anos) e persistência (repete o úl
 Métricas: total previsto vs observado, erro absoluto por ano e "acerto por safra"
 (soma de min(previsto, observado) por safra e ano / baixas observadas: quanto das baixas
 reais caiu nas safras em que o método esperava baixas).
-Saídas: reports/validacao.csv, reports/validacao_resumo.csv, reports/validacao_faixas.csv
+Saídas (em <reports>): validacao.csv, validacao_resumo.csv, validacao_faixas.csv
+Outra distribuidora: --config configs/premissas_ems.yaml (ou SWSURV_CONFIG).
 """
 import numpy as np
 import pandas as pd
@@ -15,10 +16,10 @@ import pandas as pd
 from swsurv import atuarial as A
 from swsurv import cadastro as C
 from swsurv import projecao as P
-from swsurv.config import ROOT, Config
+from swsurv.config import carregar
 
-cfg = Config.load()
-OUT = ROOT / "reports"
+cfg = carregar(__doc__)
+OUT = cfg.reports
 a = cfg["analise"]
 L = a["idade_limite_anos"]
 qual = pd.read_csv(OUT / "qualidade_classes.csv").set_index("classe")

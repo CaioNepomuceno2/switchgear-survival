@@ -6,6 +6,11 @@ dos casos, e os COD_ID são renumerados em massa em alguns anos (2019->2020, 202
 Já a contagem de equipamentos por ano de imobilização (safra) é estável e só cai, ano a ano,
 com as baixas. É o mesmo tipo de dado usado em estudos de depreciação de concessionárias
 ("aged data"), e o método atuarial de taxas de retirada é o adequado para ele.
+
+Essa estabilidade vale para religadores e disjuntores da EMT. Na EMS nenhuma das quatro classes passa no teste
+de consistência com os limites de MT: a contagem por safra sobe e desce de um cadastro para o outro
+(docs/decisoes_ems.md). O teste (`qualidade_classe`, `safras_nao_monotonas`) existe para detectar isso antes de
+ajustar qualquer curva.
 """
 from __future__ import annotations
 
@@ -33,12 +38,23 @@ def safra(dat_imo: pd.Series, ano_cadastro: int) -> pd.Series:
     return v.where(ok).astype("Int64")
 
 
-def ler_classe(cache: Path, ano: int, camada: str, tuc: str) -> pd.DataFrame:
-    """Equipamentos de uma classe (TUC) num cadastro: COD_ID, safra e atributos."""
+def ler_classe(cache: Path, ano: int, camada: str, tuc: str, cod_aneel: int | str | None = None) -> pd.DataFrame:
+    """Equipamentos de uma classe (TUC) num cadastro: COD_ID, safra e atributos.
+
+    `cod_aneel` (405 = Energisa MT, 404 = Energisa MS), se dado, confere a coluna DIST da BDGD: um cache de
+    outra distribuidora (por exemplo SWSURV_CACHE apontando para a pasta errada) para a execução em vez de
+    produzir resultados da empresa errada sem aviso.
+    """
     df = pd.read_parquet(cache / str(ano) / f"{camada}.parquet")
     for c in df.columns:
         if c not in ("lon", "lat"):
             df[c] = _s(df[c])
+    if cod_aneel is not None and "DIST" in df:
+        fora = df["DIST"].dropna().unique()
+        fora = [d for d in fora if d != str(cod_aneel)]
+        if fora:
+            raise ValueError(f"{cache / str(ano) / f'{camada}.parquet'}: DIST {fora} não é a distribuidora "
+                             f"{cod_aneel} da configuração (cache de outra distribuidora?)")
     df = df[df["TUC"] == tuc].copy()
     df["safra"] = safra(df["DAT_IMO"], ano)
     df["ano"] = ano
@@ -85,11 +101,11 @@ def qualidade_classe(mov: pd.DataFrame) -> dict:
             "expostos_ano_medio": float(mov.groupby("transicao").expostos.sum().mean()) if len(mov) else 0.0}
 
 
-def safras_nao_monotonas(m: pd.DataFrame, anos: list[int], minimo: int = 10) -> float:
-    """Fração das safras (com ao menos `minimo` equipamentos) cuja contagem SOBE depois de ter
-    caído dentro da janela `anos`. Numa frota real, uma safra só perde equipamentos."""
+def safras_nao_monotonas_detalhe(m: pd.DataFrame, anos: list[int], minimo: int = 10) -> pd.Series:
+    """Para cada safra com ao menos `minimo` equipamentos e 3 ou mais cadastros na janela `anos`: True se a
+    contagem SOBE depois de ter caído. Numa frota real, uma safra só perde equipamentos."""
     cols = [a for a in anos if a in m.columns]
-    flags = []
+    flags = {}
     for v, row in m[cols].iterrows():
         serie = row[[a for a in cols if a >= v]].to_numpy()
         if len(serie) < 3 or serie.max() < minimo:
@@ -102,11 +118,19 @@ def safras_nao_monotonas(m: pd.DataFrame, anos: list[int], minimo: int = 10) -> 
             elif x1 > x0 and caiu:
                 ruim = True
                 break
-        flags.append(ruim)
-    return float(np.mean(flags)) if flags else np.nan
+        flags[v] = ruim
+    return pd.Series(flags, dtype=bool)
 
 
-def estabilidade_ids(cache: Path, anos: list[int], camada: str, tuc: str) -> pd.DataFrame:
+def safras_nao_monotonas(m: pd.DataFrame, anos: list[int], minimo: int = 10) -> float:
+    """Fração das safras (com ao menos `minimo` equipamentos) cuja contagem SOBE depois de ter
+    caído dentro da janela `anos`. Numa frota real, uma safra só perde equipamentos."""
+    flags = safras_nao_monotonas_detalhe(m, anos, minimo)
+    return float(flags.mean()) if len(flags) else np.nan
+
+
+def estabilidade_ids(cache: Path, anos: list[int], camada: str, tuc: str,
+                     cod_aneel: int | str | None = None) -> pd.DataFrame:
     """Rastreamento equipamento a equipamento entre cadastros consecutivos.
 
     Mede: fração dos COD_ID que reaparecem; entre os que reaparecem, fração com a
@@ -114,7 +138,7 @@ def estabilidade_ids(cache: Path, anos: list[int], camada: str, tuc: str) -> pd.
     """
     linhas = []
     for a in anos[:-1]:
-        e0, e1 = ler_classe(cache, a, camada, tuc), ler_classe(cache, a + 1, camada, tuc)
+        e0, e1 = ler_classe(cache, a, camada, tuc, cod_aneel), ler_classe(cache, a + 1, camada, tuc, cod_aneel)
         j = e0.merge(e1, on="COD_ID", suffixes=("_0", "_1"))
         un = "UN_SE" if "UN_SE_0" in j else ("UN_RE" if "UN_RE_0" in j else None)
         linhas.append({
@@ -128,18 +152,23 @@ def estabilidade_ids(cache: Path, anos: list[int], camada: str, tuc: str) -> pd.
     return pd.DataFrame(linhas)
 
 
-def pontos_religador(cache: Path, anos: list[int], tol_m: float = 30.0) -> pd.DataFrame:
-    """Rastreamento dos PONTOS de religador (UNSEMT, TIP_UNID 32) por COD_ID e, quando o
-    COD_ID não reaparece, pela posição (vizinho mais próximo a até `tol_m` metros)."""
+def pontos_religador(cache: Path, anos: list[int], tol_m: float = 30.0, tip_unid: str = "32",
+                     lat_ref: float = -13.0) -> pd.DataFrame:
+    """Rastreamento dos PONTOS de religador (UNSEMT, `tip_unid`; 32 em MT) por COD_ID e, quando o
+    COD_ID não reaparece, pela posição (vizinho mais próximo a até `tol_m` metros).
+
+    `lat_ref` (graus) é a latitude usada para converter graus de longitude em metros: -13 vale para MT
+    (padrão); outra distribuidora passa a latitude mediana dos seus pontos.
+    """
     from scipy.spatial import cKDTree
 
     def xy(df):
-        return np.c_[df.lon.values * 111320 * np.cos(np.radians(-13.0)), df.lat.values * 110540]
+        return np.c_[df.lon.values * 111320 * np.cos(np.radians(lat_ref)), df.lat.values * 110540]
 
     def ler(a):
         u = pd.read_parquet(cache / str(a) / "UNSEMT.parquet", columns=["COD_ID", "TIP_UNID", "lon", "lat"])
         u["COD_ID"], u["TIP_UNID"] = _s(u.COD_ID), _s(u.TIP_UNID)
-        return u[u.TIP_UNID == "32"].dropna(subset=["lon", "lat"]).reset_index(drop=True)
+        return u[u.TIP_UNID == tip_unid].dropna(subset=["lon", "lat"]).reset_index(drop=True)
 
     linhas = []
     for a in anos[:-1]:

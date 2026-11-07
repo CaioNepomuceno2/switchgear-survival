@@ -1,6 +1,7 @@
 data/cache/
 data/raw/
 data/processed/
+data/ems/
 __pycache__/
 *.pyc
 .pytest_cache/
